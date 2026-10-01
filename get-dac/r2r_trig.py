@@ -12,7 +12,7 @@ if __name__ == "__main__":
         dac = r2r.R2R_DAC([16, 20, 21, 25, 26, 17, 27, 22], 3.183, False)
 
         while True:
-            u = (sg.get_sin_wave_amplitude(signal_frequency, time.time())) * amplitude
+            u = (sg.get_trig_wave_amplitude(signal_frequency, time.time())) * amplitude
             dac.set_voltage(u)
             sg.wait_for_sampling_period(sampling_frequency)
 

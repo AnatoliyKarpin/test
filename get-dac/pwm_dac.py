@@ -2,7 +2,7 @@ import RPi.GPIO as GPIO
 
 
 class PWM_DAC:
-    def __init__(self, gpio_pin, pwm_frequency, dynamic_range, verbose=False):
+    def __init__(self, gpio_pin, pwm_frequency, dynamic_range, verbose = False):
         self.gpio_pin = gpio_pin
         self.pwm_frequency = pwm_frequency
         self.dynamic_range = dynamic_range
@@ -21,16 +21,13 @@ class PWM_DAC:
 
     def set_voltage(self, voltage):
         
-        if voltage < 0:
-            voltage = 0
-        elif voltage > self.dynamic_range:
-            voltage = self.dynamic_range
+        if voltage < 0 or voltage > self.dynamic_range:
+            print ("напряжение выходит за динамический диапозон ЦАП (0.00 - 3.29 В)")
+            return
         duty_cycle = voltage / self.dynamic_range * 100
         self.pwm.ChangeDutyCycle(duty_cycle)
-
         if self.verbose:
-            print(f"Напряжение: {voltage:.3f} В -> скважность: {duty_cycle:.2f} %")
-
+            print(f"Напряжение: {voltage:.3f} B - скважность: {duty_cycle:.2f} %")
 
 if __name__ == "__main__":
     dac = None

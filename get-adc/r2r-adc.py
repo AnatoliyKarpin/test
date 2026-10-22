@@ -2,71 +2,69 @@ import RPi.GPIO as GPIO
 import time
 
 
+def dec2bin(value):
+    return [int(element) for element in bin(value)[2:].zfill(8)]
+
+
 class R2R_ADC:
-    def __init__(self, dynamic_range, compare_time=0.01, verbose=False):
+    def __init__(self, dynamic_range, compare_time = 0.01, verbose = False):
         self.dynamic_range = dynamic_range
         self.verbose = verbose
         self.compare_time = compare_time
-
+        
         self.bits_gpio = [26, 20, 19, 16, 13, 12, 25, 11]
         self.comp_gpio = 21
 
         GPIO.setmode(GPIO.BCM)
-        GPIO.setup(self.bits_gpio, GPIO.OUT, initial=0)
+        GPIO.setup(self.bits_gpio, GPIO.OUT, initial = 0)
         GPIO.setup(self.comp_gpio, GPIO.IN)
 
-    def __del__(self):
-        try:
-            GPIO.output(self.bits_gpio, 0)
-        except Exception:
-            pass
-        finally:
-            GPIO.cleanup()
+    def deinit(self):
+        GPIO.output(self.bits_gpio, 0)
+        GPIO.cleanup()
 
     def number_to_dac(self, number):
-        bits_count = len(self.bits_gpio)
-        for i, pin in enumerate(self.bits_gpio):
-            bit = (number >> (bits_count - 1 - i)) & 1
-            GPIO.output(pin, bit)
-
-        if self.verbose:
-            print(f"number_to_dac({number}) -> {number:08b}")
+        GPIO.output(self.bits_gpio, dec2bin(number))
+        time.sleep(self.compare_time)
 
     def sequential_counting_adc(self):
-        
-        max_number = (1 << len(self.bits_gpio)) - 1
-
-        for number in range(max_number + 1):
-            self.number_to_dac(number)
-            time.sleep(self.compare_time)
-
-            comp_state = GPIO.input(self.comp_gpio)
-
-            if self.verbose:
-                print(f"number={number}, comparator={comp_state}")
-
-            if comp_state:
-                return number
-
-        return max_number
+        int_volt = 0
+        self.number_to_dac(int_volt)
+        while (not GPIO.input(self.comp_gpio) and int_volt < 255 - 1): 
+            int_volt += 1
+            self.number_to_dac(int_volt)
+        return int_volt
 
     def get_sc_voltage(self):
-      
-        number = self.sequential_counting_adc()
-        max_number = (1 << len(self.bits_gpio)) - 1
-        return self.dynamic_range * number / max_number
+        int_volt = self.sequential_counting_adc()
+        return int_volt * self.dynamic_range / 255
+
+    def successive_approximation_adc(self):
+        w = 0
+        r = 256
+        while (r - w > 1):
+            m = (w + r) // 2
+            GPIO.output(self.bits_gpio, dec2bin(m))
+            time.sleep(self.compare_time)
+            if (not GPIO.input(self.comp_gpio)):
+                w = m
+            else:
+                r = m
+        return w
+    
+    def get_sar_voltage(self):
+        int_volt = self.successive_approximation_adc()
+        return int_volt * self.dynamic_range / 255
 
 
 if __name__ == "__main__":
-    adc = None
     try:
-        
-        adc = R2R_ADC(dynamic_range=3.3, verbose=False)
+        adc = R2R_ADC(3.295) 
 
         while True:
-            voltage = adc.get_sc_voltage()
-            print(f"Измеренное напряжение: {voltage:.3f} В")
-
+            voltsc = adc.get_sc_voltage()
+            voltsar = adc.get_sar_voltage()
+            print(voltsc, voltsar)
+        
     finally:
-        if adc is not None:
-            del adc
+        adc.deinit()

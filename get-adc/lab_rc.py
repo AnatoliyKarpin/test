@@ -2,6 +2,7 @@ import RPi.GPIO as GPIO
 import adc_plot
 import mcp3021_driver as mcp
 import time
+import csv
 
 if __name__ == "__main__":
     adc = mcp.MCP3021(5.19)
